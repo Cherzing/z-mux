@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/renderer",
+    "rootDir": ".",
+    "skipLibCheck": true
+  },
+  "include": ["renderer/**/*", "renderer/types.d.ts"]
+}
