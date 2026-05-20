@@ -4,6 +4,8 @@ import { WindowManager } from './window-manager';
 import { TerminalManager } from './terminal-manager';
 import { BrowserManager } from './browser-manager';
 import * as browserAuto from './browser-automation';
+import { FeedBridge } from './feed-bridge';
+import { AgentResumeManager } from './agent-resume';
 import { SSHManager } from './ssh-manager';
 import { NotificationManager } from './notification-manager';
 
@@ -19,6 +21,8 @@ export class SocketServer {
   private browserManager: BrowserManager;
   private sshManager: SSHManager;
   private notificationManager: NotificationManager;
+  private feedBridge?: FeedBridge;
+  private agentResumeManager?: AgentResumeManager;
 
   constructor(
     socketPath: string,
@@ -26,7 +30,9 @@ export class SocketServer {
     terminalManager: TerminalManager,
     browserManager: BrowserManager,
     sshManager: SSHManager,
-    notificationManager: NotificationManager
+    notificationManager: NotificationManager,
+    feedBridge?: FeedBridge,
+    agentResumeManager?: AgentResumeManager
   ) {
     this.socketPath = socketPath;
     this.windowManager = windowManager;
@@ -34,6 +40,8 @@ export class SocketServer {
     this.browserManager = browserManager;
     this.sshManager = sshManager;
     this.notificationManager = notificationManager;
+    this.feedBridge = feedBridge;
+    this.agentResumeManager = agentResumeManager;
   }
 
   async start(): Promise<void> {
@@ -272,6 +280,42 @@ export class SocketServer {
 
         // ── Config ──
         case 'reload-config': { return { id: cmd.id, ok: true }; }
+
+        // ── Feed Bridge ──
+        case 'feed:getEventLog': {
+          if (!this.feedBridge) return { id: cmd.id, ok: true, result: [] };
+          return { id: cmd.id, ok: true, result: this.feedBridge.getEventLog(cmd.args?.limit) };
+        }
+        case 'feed:emitEvent': {
+          if (cmd.args) this.feedBridge?.emitEvent(cmd.args as any);
+          return { id: cmd.id, ok: true };
+        }
+        case 'feed:getHooks': {
+          if (!this.feedBridge) return { id: cmd.id, ok: true, result: [] };
+          return { id: cmd.id, ok: true, result: this.feedBridge.getHooks() };
+        }
+        case 'feed:registerHook': {
+          if (cmd.args) this.feedBridge?.registerHook(cmd.args as any);
+          return { id: cmd.id, ok: true };
+        }
+        case 'feed:unregisterHook': {
+          this.feedBridge?.unregisterHook(cmd.args?.id);
+          return { id: cmd.id, ok: true };
+        }
+
+        // ── Agent ──
+        case 'agent:getAll': {
+          if (!this.agentResumeManager) return { id: cmd.id, ok: true, result: [] };
+          return { id: cmd.id, ok: true, result: await this.agentResumeManager.detectAgents() };
+        }
+        case 'agent:getSessionMap': {
+          if (!this.agentResumeManager) return { id: cmd.id, ok: true, result: [] };
+          return { id: cmd.id, ok: true, result: this.agentResumeManager.getSessionMap() };
+        }
+        case 'agent:getResumeCommand': {
+          if (!this.agentResumeManager) return { id: cmd.id, ok: true, result: null };
+          return { id: cmd.id, ok: true, result: this.agentResumeManager.getResumeCommand(cmd.args?.paneId) };
+        }
 
         // ── Identify ──
         case 'identify': {

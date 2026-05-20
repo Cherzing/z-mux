@@ -296,6 +296,15 @@ export class WindowManager {
     return null;
   }
 
+  findWorkspaceByPaneId(paneId: string): string {
+    for (const [wsId, ws] of this.state.workspaces) {
+      for (const tab of ws.tabs.values()) {
+        if (tab.panes.has(paneId)) return wsId;
+      }
+    }
+    return '';
+  }
+
   getActiveWorkspace(): WorkspaceState | null {
     return this.state.workspaces.get(this.state.activeWorkspaceId) || null;
   }

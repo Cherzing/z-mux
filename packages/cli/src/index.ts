@@ -344,4 +344,68 @@ program.command('focus').description('Focus a surface').argument('<surfaceId>')
     await sendCommand('focus', { surfaceId });
   });
 
+// ── Feed ──
+const feedCmd = program.command('feed').description('Feed bridge for agent events');
+
+feedCmd.command('log').description('Show recent feed events')
+  .option('-n, --limit <n>', 'Number of events', '20')
+  .action(async (opts) => {
+    const res = await sendCommand('feed:getEventLog', { limit: parseInt(opts.limit) });
+    if (res.ok) {
+      for (const event of res.result) {
+        const time = new Date(event.timestamp).toLocaleTimeString();
+        console.log(`[${time}] ${event.type} (${event.source}) ${event.surfaceId}`);
+        if (event.payload?.message) console.log(`  ${event.payload.message}`);
+      }
+    }
+  });
+
+feedCmd.command('emit').description('Emit a custom feed event')
+  .requiredOption('-t, --type <type>', 'Event type')
+  .option('-s, --source <source>', 'Event source', 'cli')
+  .option('-p, --payload <json>', 'Event payload (JSON)', '{}')
+  .action(async (opts) => {
+    const payload = JSON.parse(opts.payload);
+    await sendCommand('feed:emitEvent', { type: opts.type, source: opts.source, surfaceId: '', workspaceId: '', payload });
+    console.log('Event emitted');
+  });
+
+feedCmd.command('hooks').description('List registered feed hooks')
+  .action(async () => {
+    const res = await sendCommand('feed:getHooks');
+    if (res.ok) {
+      console.log('Feed hooks:');
+      for (const hook of res.result) {
+        console.log(`  ${hook.id} (${hook.name}) events=${hook.eventTypes.join(',')} priority=${hook.priority} enabled=${hook.enabled}`);
+      }
+    }
+  });
+
+// ── Agent ──
+const agentCmd = program.command('agent').description('Agent integration');
+
+agentCmd.command('detect').description('Detect installed coding agents')
+  .action(async () => {
+    const res = await sendCommand('agent:getAll');
+    if (res.ok) {
+      console.log('Detected agents:');
+      for (const agent of res.result) {
+        const status = agent.detected ? '✓' : '✗';
+        console.log(`  ${status} ${agent.displayName} (${agent.binary})`);
+      }
+    }
+  });
+
+agentCmd.command('sessions').description('Show agent session map')
+  .action(async () => {
+    const res = await sendCommand('agent:getSessionMap');
+    if (res.ok) {
+      console.log('Agent sessions:');
+      for (const session of res.result) {
+        console.log(`  ${session.paneId} → ${session.agent} (${session.sessionId})`);
+      }
+      if (res.result.length === 0) console.log('  No active sessions');
+    }
+  });
+
 program.parse();

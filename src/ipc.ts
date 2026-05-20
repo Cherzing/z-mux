@@ -9,6 +9,7 @@ import { SettingsManager } from './settings-manager';
 import { AgentResumeManager } from './agent-resume';
 import { CustomCommandsManager } from './custom-commands';
 import { DockManager } from './dock-manager';
+import { FeedBridge } from './feed-bridge';
 
 export function registerIPCHandlers(
   windowManager: WindowManager,
@@ -20,7 +21,8 @@ export function registerIPCHandlers(
   settingsManager: SettingsManager,
   agentResumeManager?: AgentResumeManager,
   customCommandsManager?: CustomCommandsManager,
-  dockManager?: DockManager
+  dockManager?: DockManager,
+  feedBridge?: FeedBridge
 ) {
   // ── Window ──
   ipcMain.handle('window:minimize', () => BrowserWindow.getFocusedWindow()?.minimize());
@@ -258,5 +260,34 @@ export function registerIPCHandlers(
       (ws as any).color = color;
       windowManager['notify']?.();
     }
+  });
+
+  // ── Feed Bridge ──
+  ipcMain.handle('feed:getEventLog', (_, limit?: number) => {
+    if (!feedBridge) return [];
+    return feedBridge.getEventLog(limit);
+  });
+  ipcMain.handle('feed:emitEvent', (_, event: any) => {
+    feedBridge?.emitEvent(event);
+  });
+  ipcMain.handle('feed:getHooks', () => {
+    if (!feedBridge) return [];
+    return feedBridge.getHooks();
+  });
+  ipcMain.handle('feed:registerHook', (_, hook: any) => {
+    feedBridge?.registerHook(hook);
+  });
+  ipcMain.handle('feed:unregisterHook', (_, id: string) => {
+    feedBridge?.unregisterHook(id);
+  });
+
+  // ── Agent Resume (extended) ──
+  ipcMain.handle('agent:getAll', async () => {
+    if (!agentResumeManager) return [];
+    return agentResumeManager.detectAgents();
+  });
+  ipcMain.handle('agent:getSessionMap', () => {
+    if (!agentResumeManager) return [];
+    return agentResumeManager.getSessionMap();
   });
 }

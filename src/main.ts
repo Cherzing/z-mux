@@ -15,6 +15,7 @@ import { AgentResumeManager } from './agent-resume';
 import { CustomCommandsManager } from './custom-commands';
 import { DockManager } from './dock-manager';
 import { setupBrowserAutomation } from './browser-automation';
+import { FeedBridge } from './feed-bridge';
 
 let mainWindow: BrowserWindow | null = null;
 let windowManager: WindowManager;
@@ -28,6 +29,7 @@ let settingsManager: SettingsManager;
 let agentResumeManager: AgentResumeManager;
 let customCommandsManager: CustomCommandsManager;
 let dockManager: DockManager;
+let feedBridge: FeedBridge;
 let tray: Tray | null = null;
 
 const isDev = process.argv.includes('--dev');
@@ -152,12 +154,17 @@ app.whenReady().then(async () => {
   agentResumeManager = new AgentResumeManager();
   customCommandsManager = new CustomCommandsManager();
   dockManager = new DockManager();
+  feedBridge = new FeedBridge();
+  feedBridge.installBuiltinHooks();
 
   // Terminal events → renderer
   terminalManager.on('data', (id: string, data: string) => {
     mainWindow?.webContents.send('surface:data', id, data);
     // Parse OSC sequences for notifications
     notificationManager.parseOSCSequence(id, data);
+    // Parse agent events for feed bridge
+    const ws = windowManager.findWorkspaceByPaneId?.(id) || '';
+    feedBridge.parseAgentOSC(id, ws, data);
   });
   terminalManager.on('exit', (id: string, code: number) => {
     mainWindow?.webContents.send('surface:exit', id, code);
@@ -177,18 +184,32 @@ app.whenReady().then(async () => {
   // Notification events → renderer
   notificationManager.on('new', (n: any) => {
     mainWindow?.webContents.send('notification:new', n);
-    // Mark pane as having notification
     windowManager.updatePaneState(n.surfaceId, { hasNotification: true } as any);
   });
   notificationManager.on('stateChanged', (s: any) => {
     mainWindow?.webContents.send('notification:stateChanged', s);
   });
 
+  // Feed bridge events → renderer
+  feedBridge.on('event', (event: any) => {
+    mainWindow?.webContents.send('feed:event', event);
+    // Auto-notify on agentStop waiting_for_input
+    if (event.type === 'agentStop' && event.payload?.reason === 'waiting_for_input') {
+      notificationManager.addNotification({
+        surfaceId: event.surfaceId,
+        workspaceId: event.workspaceId,
+        title: `${event.source} Waiting`,
+        body: event.payload.message || 'Input needed',
+        type: 'agent-waiting'
+      });
+    }
+  });
+
   const win = createWindow();
   windowManager = new WindowManager(win);
-  socketServer = new SocketServer(SOCKET_PATH, windowManager, terminalManager, browserManager, sshManager, notificationManager);
+  socketServer = new SocketServer(SOCKET_PATH, windowManager, terminalManager, browserManager, sshManager, notificationManager, feedBridge, agentResumeManager);
 
-  registerIPCHandlers(windowManager, terminalManager, browserManager, sshManager, notificationManager, sessionManager, settingsManager, agentResumeManager, customCommandsManager, dockManager);
+  registerIPCHandlers(windowManager, terminalManager, browserManager, sshManager, notificationManager, sessionManager, settingsManager, agentResumeManager, customCommandsManager, dockManager, feedBridge);
   setupBrowserAutomation();
   createTray();
   setupGlobalShortcuts();

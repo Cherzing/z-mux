@@ -97,6 +97,29 @@ contextBridge.exposeInMainWorld('zmux', {
     }
   },
 
+  feed: {
+    getEventLog: (limit?: number) => ipcRenderer.invoke('feed:getEventLog', limit),
+    emitEvent: (event: any) => ipcRenderer.invoke('feed:emitEvent', event),
+    getHooks: () => ipcRenderer.invoke('feed:getHooks'),
+    registerHook: (hook: any) => ipcRenderer.invoke('feed:registerHook', hook),
+    unregisterHook: (id: string) => ipcRenderer.invoke('feed:unregisterHook', id),
+    onEvent: (cb: (event: any) => void) => {
+      const handler = (_: any, event: any) => cb(event);
+      ipcRenderer.on('feed:event', handler);
+      return () => ipcRenderer.removeListener('feed:event', handler);
+    }
+  },
+
+  agent: {
+    detect: () => ipcRenderer.invoke('agent:detect'),
+    getAll: () => ipcRenderer.invoke('agent:getAll'),
+    getResumeCommand: (paneId: string) => ipcRenderer.invoke('agent:getResumeCommand', paneId),
+    registerSession: (paneId: string, agent: string, sessionId: string, workingDir: string) =>
+      ipcRenderer.invoke('agent:registerSession', paneId, agent, sessionId, workingDir),
+    installHooks: () => ipcRenderer.invoke('agent:installHooks'),
+    getSessionMap: () => ipcRenderer.invoke('agent:getSessionMap')
+  },
+
   init: {
     onReady: (cb: (data: { workspaceId: string; paneId: string }) => void) =>
       ipcRenderer.on('init:ready', (_, data) => cb(data))
