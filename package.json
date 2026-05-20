@@ -3,17 +3,22 @@
   "version": "0.1.0",
   "description": "A Windows-native terminal with vertical tabs and notifications for AI coding agents",
   "main": "dist/main/main.js",
+  "bin": {
+    "zmux": "dist/cli/index.js"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:main\" \"npm run dev:renderer\"",
     "dev:main": "tsc -p tsconfig.main.json && electron . --dev",
     "dev:renderer": "webpack serve --config webpack.renderer.config.js",
-    "build": "npm run build:main && npm run build:renderer",
+    "build": "npm run build:main && npm run build:renderer && npm run build:cli",
+    "build:cli": "tsc -p tsconfig.cli.json",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "webpack --config webpack.renderer.config.js --mode production",
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "cli:build": "tsc -p tsconfig.cli.json",
+    "cli": "node dist/cli/index.js",
     "cli:dev": "ts-node packages/cli/src/index.ts",
     "test": "jest"
   },

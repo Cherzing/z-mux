@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist/cli",
-    "rootDir": "./packages/cli/src"
+    "rootDir": "./packages/cli/src",
+    "noImplicitAny": false
   },
   "include": ["packages/cli/src/**/*"]
 }
