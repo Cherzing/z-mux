@@ -17,8 +17,8 @@ export const PaneContainer: React.FC = () => {
             Press <kbd className="kbd">Ctrl+T</kbd> to open a new terminal
           </div>
           <div style={{ fontSize: 12, marginTop: 8 }}>
-            <kbd className="kbd">Ctrl+Shift+P</kbd> command palette &middot;
-            <kbd className="kbd">Ctrl+D</kbd> split right &middot;
+            <kbd className="kbd">Ctrl+Shift+P</kbd> command palette &middot;{' '}
+            <kbd className="kbd">Ctrl+D</kbd> split right &middot;{' '}
             <kbd className="kbd">Ctrl+Shift+L</kbd> browser
           </div>
         </div>
@@ -26,26 +26,46 @@ export const PaneContainer: React.FC = () => {
     );
   }
 
+  // Check if any pane is zoomed
+  const zoomedPane = activeTab.panes.find((p) => p.zoomed);
+
   return (
     <div className="pane-container">
-      <LayoutRenderer layout={activeTab.layout} tab={activeTab} />
+      {zoomedPane ? (
+        <LayoutRenderer layout={{ type: 'leaf', paneId: zoomedPane.id }} tab={activeTab} />
+      ) : (
+        <LayoutRenderer layout={activeTab.layout} tab={activeTab} />
+      )}
     </div>
   );
 };
 
 const LayoutRenderer: React.FC<{ layout: LayoutNode; tab: Tab }> = ({ layout, tab }) => {
+  const { setActivePane } = useAppStore();
+
   if (layout.type === 'leaf') {
     const pane = tab.panes.find((p) => p.id === layout.paneId);
     if (!pane) return null;
 
-    // Check if pane is zoomed
-    const isZoomed = tab.panes.some((p) => p.zoomed);
-    if (isZoomed && !pane.zoomed) return null;
+    const handleFocus = () => {
+      const ws = useAppStore.getState().getActiveWorkspace();
+      if (ws && pane.id !== tab.activePaneId) {
+        setActivePane(ws.id, tab.id, pane.id);
+      }
+    };
 
     if (pane.type === 'browser') {
-      return <BrowserPane pane={pane} isActive={pane.id === tab.activePaneId} />;
+      return (
+        <div onClick={handleFocus} style={{ flex: 1, display: 'flex', minWidth: 0 }}>
+          <BrowserPane pane={pane} isActive={pane.id === tab.activePaneId} />
+        </div>
+      );
     }
-    return <TerminalPane pane={pane} isActive={pane.id === tab.activePaneId} />;
+    return (
+      <div onClick={handleFocus} style={{ flex: 1, display: 'flex', minWidth: 0 }}>
+        <TerminalPane pane={pane} isActive={pane.id === tab.activePaneId} />
+      </div>
+    );
   }
 
   return (
